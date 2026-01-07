@@ -1,0 +1,67 @@
+Algorithms Course Term Project: Performance Analysis of Sorting Algorithms
+The aim of this project is to analyze the comparative performance of di6erent sorting
+algorithms under various conditions. Students will reinforce their theoretical knowledge
+through practical applications while exploring factors that a6ect real-world performance of
+algorithms.
+Algorithms to be Analyzed in the project are;
+1. Quick Sort
+2. Heap Sort
+3. Shell Sort
+4. Merge Sort
+5. Radix Sort
+Analysis Criteria
+1. Time Complexity Analysis
+- Theoretical analysis (Best, average, and worst case)
+- Practical time measurements
+- Comparison of theoretical and practical results
+2. Memory Usage
+- Theoretical memory complexity
+- Practical memory usage measurements
+- Comparison of in-place and additional memory using algorithms
+3. Dataset Characteristics
+Test datasets:
+- Randomly ordered data
+- Partially sorted data
+- Reverse ordered data
+Data sizes:
+- Suggested test sizes:
+ - Small (1,000 elements)
+ - Medium (10,000 elements)
+ - Large (100,000 elements)
+- Program should accept data size parameters from GUI
+- Di6erent data sizes will be tested during demonstration
+Project Deliverables
+1. Source Code:
+ - Algorithm implementations
+ - Test framework
+ - Analysis tools
+2. Technical Report: (PDF format, 8-12 pages)
+ - Methodology
+ - Experimental results
+ - Comparative analyses
+ - Visualizations
+ - Findings and discussion
+3. Visualizations:
+ - Performance graphs
+ - Memory usage graphs
+ - Comparison tables
+Evaluation Criteria
+1. Technical Implementation (40 points)
+ - Correct implementation of algorithms (15p)
+ - Coverage and quality of test framework (15p)
+ - Code quality and documentation (10p)
+2. Analysis and Reporting (40 points)
+ - Depth of performance analysis (15p)
+ - Interpretation of results (15p)
+ - Report quality and clarity (10p)
+3. Visualization and Presentation (20 points)
+ - Quality and clarity of graphs (10p)
+ - E6ective presentation of results (10p)
+Submission Requirements
+1. All source code
+2. Test data and results
+3. Technical report (PDF format)
+4. Requirements file
+Important Notes
+- Code copying or plagiarism will be evaluated with zero tolerance
+- Groups are limited to 4 students
