@@ -28,8 +28,8 @@ from data_generator import DataGenerator, DATASET_TYPES
 from gui import SortingVisualization
 
 sys.setrecursionlimit(100000)
-ctk.set_appearance_mode("Dark")
-ctk.set_default_color_theme("dark-blue")
+ctk.set_appearance_mode("Light")
+ctk.set_default_color_theme("blue")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -86,19 +86,19 @@ ALGORITHM_INFO = {
 class UltimateSortingAnalyzer(ctk.CTk):
     
     COLORS = {
-        'bg_dark': '#0d1117', 'bg_card': '#161b22',
-        'accent_blue': '#58a6ff', 'accent_green': '#3fb950',
-        'accent_purple': '#a371f7', 'accent_orange': '#d29922',
-        'accent_red': '#f85149', 'accent_cyan': '#39d5ff',
-        'text_primary': '#f0f6fc', 'text_secondary': '#8b949e',
-        'border': '#30363d',
+        'bg_dark': '#ffffff', 'bg_card': '#ffffff',
+        'accent_blue': '#0969da', 'accent_green': '#2da44e',
+        'accent_purple': '#8250df', 'accent_orange': '#bf8700',
+        'accent_red': '#cf222e', 'accent_cyan': '#0550ae',
+        'text_primary': '#24292f', 'text_secondary': '#57606a',
+        'border': '#cfd7df',
     }
     
-    CHART_COLORS = ['#58a6ff', '#3fb950', '#a371f7', '#d29922', '#f85149']
+    CHART_COLORS = ['#0969da', '#2da44e', '#8250df', '#bf8700', '#cf222e']
     
     ALGO_COLORS = {
-        'Quick Sort': '#58a6ff', 'Heap Sort': '#3fb950',
-        'Shell Sort': '#a371f7', 'Merge Sort': '#d29922', 'Radix Sort': '#f85149',
+        'Quick Sort': '#0969da', 'Heap Sort': '#2da44e',
+        'Shell Sort': '#8250df', 'Merge Sort': '#bf8700', 'Radix Sort': '#cf222e',
     }
     
     def __init__(self):
@@ -248,7 +248,7 @@ class UltimateSortingAnalyzer(ctk.CTk):
         self._create_report_tab()
     
     def _create_charts_tab(self):
-        plt.style.use('dark_background')
+        plt.style.use('default')
         
         self.fig = Figure(figsize=(12, 7), facecolor=self.COLORS['bg_dark'])
         self.fig.subplots_adjust(left=0.07, right=0.93, top=0.90, bottom=0.12, wspace=0.35, hspace=0.45)
@@ -272,9 +272,9 @@ class UltimateSortingAnalyzer(ctk.CTk):
     
     def _style_empty_charts(self):
         titles = ["EXECUTION TIME\n(Lower = Faster)", "MEMORY USAGE\n(Lower = Better)",
-                  "COMBINED COMPARISON", "ALGORITHM RANKING"]
+                  "COMBINED COMPARISON", "ALGORITHM RACE\n(Time to Finish)"]
         for ax, title in zip([self.ax1, self.ax2, self.ax3, self.ax4], titles):
-            ax.set_title(title, color='white', fontsize=10, fontweight='bold', pad=10)
+            ax.set_title(title, color='black', fontsize=10, fontweight='bold', pad=10)
             ax.text(0.5, 0.5, "Click START ANALYSIS", ha='center', va='center',
                    color=self.COLORS['text_secondary'], fontsize=11, transform=ax.transAxes)
             ax.set_xticks([])
@@ -468,12 +468,12 @@ class UltimateSortingAnalyzer(ctk.CTk):
         self.ax1.plot(x, times, '-', color='#888888', linewidth=2, alpha=0.5, zorder=1)
         min_idx = times.index(min(times))
         self.ax1.scatter([min_idx], [times[min_idx]], s=300, c='#00ff00', marker='*', zorder=10)
-        self.ax1.set_title("EXECUTION TIME\n(Lower = Faster)", color='white', fontsize=11, fontweight='bold', pad=10)
+        self.ax1.set_title("EXECUTION TIME\n(Lower = Faster)", color='black', fontsize=11, fontweight='bold', pad=10)
         self.ax1.set_xticks(x)
-        self.ax1.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='white')
-        self.ax1.tick_params(colors='white')
+        self.ax1.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='black')
+        self.ax1.tick_params(colors='black')
         self.ax1.grid(True, linestyle='--', alpha=0.3)
-        self.ax1.legend(loc='upper right', facecolor='#222', labelcolor='white', fontsize=8)
+        self.ax1.legend(loc='upper right', facecolor='#f0f0f0', labelcolor='black', fontsize=8)
         
         # Memory chart
         for i, (xi, mi, c, name) in enumerate(zip(x, mems, colors, names)):
@@ -485,10 +485,10 @@ class UltimateSortingAnalyzer(ctk.CTk):
         self.ax2.plot(x, mems, '-', color='#888888', linewidth=2, alpha=0.5, zorder=1)
         min_mem_idx = mems.index(min(mems))
         self.ax2.scatter([min_mem_idx], [mems[min_mem_idx]], s=300, c='#00ff00', marker='*', zorder=10)
-        self.ax2.set_title("MEMORY USAGE\n(Lower = Better)", color='white', fontsize=11, fontweight='bold', pad=10)
+        self.ax2.set_title("MEMORY USAGE\n(Lower = Better)", color='black', fontsize=11, fontweight='bold', pad=10)
         self.ax2.set_xticks(x)
-        self.ax2.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='white')
-        self.ax2.tick_params(colors='white')
+        self.ax2.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='black')
+        self.ax2.tick_params(colors='black')
         self.ax2.grid(True, linestyle='--', alpha=0.3)
         
         # Combined chart
@@ -502,31 +502,42 @@ class UltimateSortingAnalyzer(ctk.CTk):
         self.ax3b.set_ylabel("Memory (KB)", color=self.COLORS['accent_orange'])
         self.ax3b.tick_params(axis='y', colors=self.COLORS['accent_orange'])
         
-        self.ax3.set_title("COMBINED COMPARISON", color='white', fontsize=11, fontweight='bold', pad=10)
+        self.ax3.set_title("COMBINED COMPARISON", color='black', fontsize=11, fontweight='bold', pad=10)
         self.ax3.set_xticks(x)
-        self.ax3.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='white')
-        self.ax3.tick_params(axis='x', colors='white')
+        self.ax3.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='black')
+        self.ax3.tick_params(axis='x', colors='black')
         self.ax3.grid(True, linestyle='--', alpha=0.3)
-        self.ax3.legend(line1+line2, ['Time', 'Memory'], loc='upper center', facecolor='#333', labelcolor='white', ncol=2)
+        self.ax3.legend(line1+line2, ['Time', 'Memory'], loc='upper center', facecolor='#f0f0f0', labelcolor='black', ncol=2)
         
-        # Ranking chart
-        time_norm = 1 - (np.array(times) - min(times)) / (max(times) - min(times) + 0.001)
-        mem_norm = 1 - (np.array(mems) - min(mems)) / (max(mems) - min(mems) + 0.001)
-        scores = (time_norm + mem_norm) / 2 * 100
+        # Race Chart (Ranking by Speed - Items/sec)
+        # Calculate speed (Items per second) prevents div/0
+        speeds = [size / (t / 1000 + 0.00001) for t in times]
         
-        sorted_idx = np.argsort(scores)[::-1]
+        # Sort by speed ascending (Slowest at bottom, Fastest at top)
+        sorted_idx = np.argsort(speeds)
         sorted_names = [names[i] for i in sorted_idx]
-        sorted_scores = [scores[i] for i in sorted_idx]
-        sorted_colors = [self.ALGO_COLORS.get(full_names[i], '#58a6ff') for i in sorted_idx]
+        sorted_speeds = [speeds[i] for i in sorted_idx]
+        sorted_colors = [colors[i] for i in sorted_idx]
+        sorted_times = [times[i] for i in sorted_idx]
         
-        bars = self.ax4.barh(sorted_names, sorted_scores, color=sorted_colors, edgecolor='white', height=0.6)
-        for i, (bar, score) in enumerate(zip(bars, sorted_scores)):
-            medal = "#1" if i == 0 else ("#2" if i == 1 else ("#3" if i == 2 else f"#{i+1}"))
-            self.ax4.text(score + 2, bar.get_y() + bar.get_height()/2, f'{medal} {score:.0f}%',
-                         va='center', color='white', fontsize=10, fontweight='bold')
-        self.ax4.set_title("ALGORITHM RANKING", color='white', fontsize=11, fontweight='bold', pad=10)
-        self.ax4.set_xlim(0, 120)
-        self.ax4.tick_params(colors='white')
+        bars = self.ax4.barh(sorted_names, sorted_speeds, color=sorted_colors, edgecolor='white', height=0.6)
+        
+        max_speed = max(speeds)
+        for i, (bar, speed, time_val) in enumerate(zip(bars, sorted_speeds, sorted_times)):
+            # Label with Speed AND Time
+            label_text = f"{speed:,.0f} ops/s ({time_val:.1f}ms)"
+            self.ax4.text(speed + (max_speed * 0.02), bar.get_y() + bar.get_height()/2, label_text,
+                         va='center', color='black', fontsize=9, fontweight='bold')
+            
+            # Winner badge for the top one
+            if i == len(bars) - 1:
+                self.ax4.text(speed / 2, bar.get_y() + bar.get_height()/2, '🏆 WINNER',
+                             ha='center', va='center', color='white', fontsize=10, fontweight='bold',
+                             bbox=dict(facecolor='black', alpha=0.3, edgecolor='none', boxstyle='round,pad=0.2'))
+        
+        self.ax4.set_title("ALGORITHM RACE\n(Processing Speed)", color='black', fontsize=11, fontweight='bold', pad=10)
+        self.ax4.set_xlim(0, max(speeds) * 1.45) # Extra space
+        self.ax4.tick_params(colors='black')
         self.ax4.grid(True, axis='x', linestyle='--', alpha=0.3)
         
         for ax in [self.ax1, self.ax2, self.ax3, self.ax4]:
@@ -534,7 +545,7 @@ class UltimateSortingAnalyzer(ctk.CTk):
             for spine in ax.spines.values():
                 spine.set_color(self.COLORS['border'])
         
-        self.fig.suptitle(f"Analysis: {dtype} Data | {size:,} Elements", color='white', fontsize=13, fontweight='bold', y=0.97)
+        self.fig.suptitle(f"Analysis: {dtype} Data | {size:,} Elements", color='black', fontsize=13, fontweight='bold', y=0.97)
         self.fig.tight_layout(rect=[0, 0, 1, 0.95])
         self.canvas.draw()
     

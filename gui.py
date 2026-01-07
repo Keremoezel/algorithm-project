@@ -15,17 +15,24 @@ import numpy as np
 class SortingVisualization(ctk.CTkToplevel):
     """Step-by-step visualization with algorithm-specific highlights."""
     
+    # Light Theme Colors
     COLORS = {
-        'bg': '#0d1117',
-        'bar_normal': '#58a6ff',
-        'bar_comparing': '#f85149',
-        'bar_swapping': '#3fb950',
-        'bar_sorted': '#a371f7',
-        'bar_pivot': '#ff6b6b',
-        'bar_gap': '#ffd93d',
-        'bar_merging': '#4ecdc4',
+        'bg': '#ffffff',
+        'bar_normal': '#0969da',      # Blue
+        'bar_comparing': '#cf222e',   # Red
+        'bar_swapping': '#2da44e',    # Green
+        'bar_sorted': '#8250df',      # Purple
+        'bar_pivot': '#d93a3a',       # Strong Red for PIVOT
+        'bar_gap': '#bf8700',         # Darker Yellow/Gold
+        'bar_merging': '#1b7c83',     # Teal
     }
     
+    TEXT_COLOR = "#24292f"
+    SUBTEXT_COLOR = "#57606a"
+    HEADER_BG = "#ffffff"
+    BUTTON_BG_SECONDARY = "#cfd7df"
+    BUTTON_HOVER = "#c0c8d0"
+
     def __init__(self, parent, algorithm_name: str, algorithm_info: dict):
         super().__init__(parent)
         
@@ -51,18 +58,27 @@ class SortingVisualization(ctk.CTkToplevel):
         
         self._create_ui()
         self._generate_steps()
-        self._draw_bars(self.array, {})
+        
+        # Initial draw
+        step_data = self.steps[0]
+        if len(step_data) == 4:
+            arr, hl, ptrs, desc = step_data
+        else:
+            arr, hl, desc = step_data
+            ptrs = {}
+
+        self._draw_bars(arr, hl, ptrs)
         
         self.step_label.configure(text=f"Step: 0 / {len(self.steps)}")
         self.action_label.configure(text="Press STEP or AUTO PLAY to begin")
     
     def _create_ui(self):
-        header = ctk.CTkFrame(self, fg_color="#161b22", height=60)
+        header = ctk.CTkFrame(self, fg_color=self.HEADER_BG, height=60)
         header.pack(fill="x")
         header.pack_propagate(False)
         
         ctk.CTkLabel(header, text=f"{self.algorithm_name} Visualization",
-                    font=ctk.CTkFont(size=22, weight="bold"), text_color="#58a6ff").pack(pady=15)
+                    font=ctk.CTkFont(size=22, weight="bold"), text_color=self.COLORS['bar_normal']).pack(pady=15)
         
         # Chart area
         chart_frame = ctk.CTkFrame(self, fg_color=self.COLORS['bg'])
@@ -86,15 +102,15 @@ class SortingVisualization(ctk.CTkToplevel):
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
         
         # Info panel
-        info_frame = ctk.CTkFrame(self, fg_color="#161b22", corner_radius=10)
+        info_frame = ctk.CTkFrame(self, fg_color=self.HEADER_BG, corner_radius=10)
         info_frame.pack(fill="x", padx=15, pady=5)
         
         self.step_label = ctk.CTkLabel(info_frame, text="Step: 0 / 0",
-                                       font=ctk.CTkFont(size=16, weight="bold"))
+                                       font=ctk.CTkFont(size=16, weight="bold"), text_color=self.TEXT_COLOR)
         self.step_label.pack(pady=(8, 3))
         
         self.action_label = ctk.CTkLabel(info_frame, text="Ready...",
-                                         font=ctk.CTkFont(size=13), text_color="#ffffff")
+                                         font=ctk.CTkFont(size=13), text_color=self.SUBTEXT_COLOR)
         self.action_label.pack(pady=(0, 8))
         
         legend_frame = ctk.CTkFrame(info_frame, fg_color="transparent")
@@ -102,7 +118,7 @@ class SortingVisualization(ctk.CTkToplevel):
         self._create_legend(legend_frame)
         
         # Controls
-        ctrl_frame = ctk.CTkFrame(self, fg_color="#161b22", corner_radius=10)
+        ctrl_frame = ctk.CTkFrame(self, fg_color=self.HEADER_BG, corner_radius=10)
         ctrl_frame.pack(fill="x", padx=15, pady=5)
         
         btn_frame = ctk.CTkFrame(ctrl_frame, fg_color="transparent")
@@ -110,44 +126,45 @@ class SortingVisualization(ctk.CTkToplevel):
         
         self.step_btn = ctk.CTkButton(btn_frame, text="STEP →", width=120, height=42,
                                       font=ctk.CTkFont(size=15, weight="bold"),
-                                      fg_color="#3fb950", command=self._step_forward)
+                                      fg_color=self.COLORS['bar_swapping'], text_color="white", command=self._step_forward)
         self.step_btn.pack(side="left", padx=6)
         
         self.play_btn = ctk.CTkButton(btn_frame, text="▶ AUTO", width=90, height=42,
                                       font=ctk.CTkFont(size=13, weight="bold"),
-                                      fg_color="#58a6ff", command=self._toggle_auto)
+                                      fg_color=self.COLORS['bar_normal'], text_color="white", command=self._toggle_auto)
         self.play_btn.pack(side="left", padx=6)
         
         ctk.CTkButton(btn_frame, text="↺ RESTART", width=90, height=42,
-                     fg_color="#d29922", command=self._restart).pack(side="left", padx=6)
+                     fg_color=self.COLORS['bar_gap'], text_color="black", command=self._restart).pack(side="left", padx=6)
         
-        ctk.CTkButton(btn_frame, text="Slower", width=60, height=42, fg_color="#30363d",
-                     command=lambda: self._change_speed(0.15)).pack(side="left", padx=3)
-        ctk.CTkButton(btn_frame, text="Faster", width=60, height=42, fg_color="#30363d",
-                     command=lambda: self._change_speed(-0.15)).pack(side="left", padx=3)
+        ctk.CTkButton(btn_frame, text="Slower", width=60, height=42, fg_color=self.BUTTON_BG_SECONDARY, text_color=self.TEXT_COLOR,
+                     hover_color=self.BUTTON_HOVER, command=lambda: self._change_speed(0.15)).pack(side="left", padx=3)
+        ctk.CTkButton(btn_frame, text="Faster", width=60, height=42, fg_color=self.BUTTON_BG_SECONDARY, text_color=self.TEXT_COLOR,
+                     hover_color=self.BUTTON_HOVER, command=lambda: self._change_speed(-0.15)).pack(side="left", padx=3)
         
         # Input row
-        input_frame = ctk.CTkFrame(self, fg_color="#161b22", corner_radius=10)
+        input_frame = ctk.CTkFrame(self, fg_color=self.HEADER_BG, corner_radius=10)
         input_frame.pack(fill="x", padx=15, pady=5)
         
         inp_row = ctk.CTkFrame(input_frame, fg_color="transparent")
         inp_row.pack(pady=8)
         
-        ctk.CTkLabel(inp_row, text="Numbers:").pack(side="left", padx=5)
-        self.input_entry = ctk.CTkEntry(inp_row, width=220, placeholder_text="e.g., 8,3,5,1,9")
+        ctk.CTkLabel(inp_row, text="Numbers:", text_color=self.TEXT_COLOR).pack(side="left", padx=5)
+        self.input_entry = ctk.CTkEntry(inp_row, width=220, placeholder_text="e.g., 8,3,5,1,9", 
+                                        fg_color="white", text_color="black", placeholder_text_color="gray")
         self.input_entry.pack(side="left", padx=5)
-        ctk.CTkButton(inp_row, text="Apply", width=55, fg_color="#3fb950", command=self._apply_custom).pack(side="left", padx=3)
-        ctk.CTkButton(inp_row, text="Random", width=65, fg_color="#a371f7", command=self._randomize).pack(side="left", padx=3)
+        ctk.CTkButton(inp_row, text="Apply", width=55, fg_color=self.COLORS['bar_swapping'], text_color="white", command=self._apply_custom).pack(side="left", padx=3)
+        ctk.CTkButton(inp_row, text="Random", width=65, fg_color=self.COLORS['bar_sorted'], text_color="white", command=self._randomize).pack(side="left", padx=3)
         
         # How it works
-        how_frame = ctk.CTkFrame(self, fg_color="#161b22", corner_radius=10)
+        how_frame = ctk.CTkFrame(self, fg_color=self.HEADER_BG, corner_radius=10)
         how_frame.pack(fill="x", padx=15, pady=(5, 12))
         
         ctk.CTkLabel(how_frame, text=f"How {self.algorithm_name} Works:",
-                    font=ctk.CTkFont(size=13, weight="bold"), text_color="#3fb950").pack(anchor="w", padx=12, pady=(8, 3))
+                    font=ctk.CTkFont(size=13, weight="bold"), text_color=self.COLORS['bar_swapping']).pack(anchor="w", padx=12, pady=(8, 3))
         how_text = self.algorithm_info.get('how_it_works', '')
         ctk.CTkLabel(how_frame, text=how_text, font=ctk.CTkFont(size=11),
-                    text_color="#8b949e", justify="left").pack(anchor="w", padx=12, pady=(0, 8))
+                    text_color=self.SUBTEXT_COLOR, justify="left").pack(anchor="w", padx=12, pady=(0, 8))
     
     def _create_legend(self, parent):
         if self.algorithm_name == "Quick Sort":
@@ -170,57 +187,72 @@ class SortingVisualization(ctk.CTkToplevel):
             frame = ctk.CTkFrame(parent, fg_color="transparent")
             frame.pack(side="left", padx=8)
             ctk.CTkLabel(frame, text="■", font=ctk.CTkFont(size=14), text_color=color).pack(side="left")
-            ctk.CTkLabel(frame, text=text, font=ctk.CTkFont(size=10)).pack(side="left", padx=2)
+            ctk.CTkLabel(frame, text=text, font=ctk.CTkFont(size=10), text_color=self.TEXT_COLOR).pack(side="left", padx=2)
     
-    def _draw_bars(self, array, highlights):
+    def _draw_bars(self, array, highlights, pointers=None):
         self.ax.clear()
         self.ax.set_facecolor(self.COLORS['bg'])
         
         colors = []
         for i in range(len(array)):
             hl = highlights.get(i, 'normal')
-            if hl == 'pivot':
-                colors.append(self.COLORS['bar_pivot'])
-            elif hl == 'comparing':
-                colors.append(self.COLORS['bar_comparing'])
-            elif hl == 'swapping':
-                colors.append(self.COLORS['bar_swapping'])
-            elif hl == 'sorted':
-                colors.append(self.COLORS['bar_sorted'])
-            elif hl == 'gap':
-                colors.append(self.COLORS['bar_gap'])
-            elif hl == 'merging':
-                colors.append(self.COLORS['bar_merging'])
-            else:
-                colors.append(self.COLORS['bar_normal'])
+            if hl == 'pivot': colors.append(self.COLORS['bar_pivot'])
+            elif hl == 'comparing': colors.append(self.COLORS['bar_comparing'])
+            elif hl == 'swapping': colors.append(self.COLORS['bar_swapping'])
+            elif hl == 'sorted': colors.append(self.COLORS['bar_sorted'])
+            elif hl == 'gap': colors.append(self.COLORS['bar_gap'])
+            elif hl == 'merging': colors.append(self.COLORS['bar_merging'])
+            else: colors.append(self.COLORS['bar_normal'])
         
-        bars = self.ax.bar(range(len(array)), array, color=colors, edgecolor='white', linewidth=2, width=0.75)
+        bars = self.ax.bar(range(len(array)), array, color=colors, edgecolor='black', linewidth=1, width=0.75)
         
         for i, (bar, val) in enumerate(zip(bars, array)):
             hl = highlights.get(i, '')
             
+            # Value on top (Black text for light theme)
             self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1,
-                        str(val), ha='center', va='bottom', color='white', fontsize=10, fontweight='bold')
+                        str(val), ha='center', va='bottom', color=self.TEXT_COLOR, fontsize=10, fontweight='bold')
+            
+            # Labels inside bars (White text usually good on colored bars)
+            # Gap bar is yellow -> Use black text
+            label_color = 'white'
+            if hl == 'gap': label_color = 'black'
             
             if hl == 'pivot':
                 self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
-                            'MAX', ha='center', va='center', color='white', fontsize=8, fontweight='bold')
+                            'MAX' if self.algorithm_name == 'Heap Sort' else 'PIVOT', 
+                            ha='center', va='center', color=label_color, fontsize=9, fontweight='bold', rotation=90)
             elif hl == 'gap':
                 self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
-                            'GAP', ha='center', va='center', color='black', fontsize=8, fontweight='bold')
+                            'GAP', ha='center', va='center', color=label_color, fontsize=9, fontweight='bold', rotation=90)
+            elif hl == 'comparing':
+                self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
+                            '?', ha='center', va='center', color=label_color, fontsize=14, fontweight='bold')
             elif hl == 'swapping':
                 self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
-                            '<>', ha='center', va='center', color='white', fontsize=10, fontweight='bold')
+                            '<>', ha='center', va='center', color=label_color, fontsize=12, fontweight='bold')
             elif hl == 'sorted':
                 self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
-                            'OK', ha='center', va='center', color='white', fontsize=8, fontweight='bold')
+                            'OK', ha='center', va='center', color=label_color, fontsize=10, fontweight='bold')
+            elif hl == 'merging':
+                self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
+                            'M', ha='center', va='center', color=label_color, fontsize=10, fontweight='bold')
+
+        # Draw Pointers (i, j)
+        if pointers:
+            for label, idx in pointers.items():
+                if 0 <= idx < len(array):
+                    # Dark pointer color for white background
+                    self.ax.text(idx, -2, f"↑\n{label}", ha='center', va='top', 
+                                color='#FFFFFF', fontsize=14, fontweight='bold')
         
+        # Extend y-limit for pointers
+        self.ax.set_ylim(-6, max(array) + 8)
         self.ax.set_xlim(-0.5, len(array) - 0.5)
-        self.ax.set_ylim(0, max(array) + 8)
         self.ax.set_xticks(range(len(array)))
-        self.ax.set_xticklabels([str(i) for i in range(len(array))], color='#666', fontsize=9)
+        self.ax.set_xticklabels([str(i) for i in range(len(array))], color=self.SUBTEXT_COLOR, fontsize=9)
         self.ax.set_yticks([])
-        self.ax.set_title("Array View", color='#888', fontsize=10, pad=5)
+        self.ax.set_title("Array View", color=self.SUBTEXT_COLOR, fontsize=10, pad=5)
         for spine in self.ax.spines.values():
             spine.set_visible(False)
         
@@ -234,7 +266,7 @@ class SortingVisualization(ctk.CTkToplevel):
         """Draw binary heap as a tree structure."""
         self.ax_tree.clear()
         self.ax_tree.set_facecolor(self.COLORS['bg'])
-        self.ax_tree.set_title("Heap Tree View (Parent > Children)", color='#3fb950', fontsize=11, fontweight='bold', pad=8)
+        self.ax_tree.set_title("Heap Tree View (Parent > Children)", color=self.COLORS['bar_swapping'], fontsize=12, fontweight='bold', pad=10)
         
         n = len(array)
         if n == 0:
@@ -250,64 +282,85 @@ class SortingVisualization(ctk.CTkToplevel):
             nodes_at_level = 2 ** level
             pos_in_level = i - (2 ** level - 1)
             
-            # X position: spread across width at each level
-            x_spacing = 1.0 / (nodes_at_level + 1)
-            x = x_spacing * (pos_in_level + 1)
+            # X position: Distribute evenly at each level
+            x = (pos_in_level + 0.5) / nodes_at_level
             
-            # Y position: top to bottom
+            # Y position: Top to bottom
             y = 1 - (level + 0.5) / (depth + 0.5)
             
             positions[i] = (x, y)
         
-        # Draw edges first (lines between parent and children)
+        # Draw edges with dynamic coloring
         for i in range(n):
             left = 2 * i + 1
             right = 2 * i + 2
             
-            if left < n:
-                self.ax_tree.plot([positions[i][0], positions[left][0]], 
-                                 [positions[i][1], positions[left][1]], 
-                                 color='#444', linewidth=2, zorder=1)
-            if right < n:
-                self.ax_tree.plot([positions[i][0], positions[right][0]], 
-                                 [positions[i][1], positions[right][1]], 
-                                 color='#444', linewidth=2, zorder=1)
+            hl_p = highlights.get(i, '')
+            
+            for child in [left, right]:
+                if child < n:
+                    hl_c = highlights.get(child, '')
+                    
+                    # Determine edge style
+                    edge_color = '#d0d7de' # Light gray default
+                    edge_width = 2
+                    alpha = 0.6
+                    
+                    if (hl_p == 'swapping' and hl_c == 'swapping'):
+                        edge_color = self.COLORS['bar_swapping']
+                        edge_width = 4
+                        alpha = 1.0
+                    elif (hl_p == 'comparing' and hl_c == 'comparing') or \
+                         (hl_p == 'pivot' and hl_c == 'comparing'):
+                        edge_color = self.COLORS['bar_comparing']
+                        edge_width = 3
+                        alpha = 1.0
+                    
+                    self.ax_tree.plot([positions[i][0], positions[child][0]], 
+                                     [positions[i][1], positions[child][1]], 
+                                     color=edge_color, linewidth=edge_width, alpha=alpha, zorder=1)
         
         # Draw nodes
         for i in range(n):
             x, y = positions[i]
             hl = highlights.get(i, 'normal')
             
-            # Node color based on highlight
-            if hl == 'pivot':
+            # Dynamic styling
+            scale = 1.0
+            if hl == 'pivot': 
                 color = self.COLORS['bar_pivot']
-            elif hl == 'comparing':
+                scale = 1.4
+            elif hl == 'comparing': 
                 color = self.COLORS['bar_comparing']
-            elif hl == 'swapping':
+                scale = 1.2
+            elif hl == 'swapping': 
                 color = self.COLORS['bar_swapping']
-            elif hl == 'sorted':
+                scale = 1.2
+            elif hl == 'sorted': 
                 color = self.COLORS['bar_sorted']
-            else:
+            else: 
                 color = self.COLORS['bar_normal']
             
-            # Draw circle node
-            circle = plt.Circle((x, y), 0.04, color=color, ec='white', linewidth=2, zorder=2)
+            radius = 0.05 * scale
+            
+            if hl in ['pivot', 'comparing', 'swapping']:
+                glow = plt.Circle((x, y), radius * 1.4, color=color, alpha=0.3, zorder=1.5)
+                self.ax_tree.add_patch(glow)
+            
+            circle = plt.Circle((x, y), radius, color=color, ec='white', linewidth=2, zorder=2)
             self.ax_tree.add_patch(circle)
             
-            # Node value
+            font_weight = 'bold' if hl != 'normal' else 'normal'
+            font_size = 12 if hl != 'normal' else 10
             self.ax_tree.text(x, y, str(array[i]), ha='center', va='center',
-                            color='white', fontsize=10, fontweight='bold', zorder=3)
+                            color='white', fontsize=font_size, fontweight=font_weight, zorder=3)
             
-            # Index below node
-            self.ax_tree.text(x, y - 0.08, f'[{i}]', ha='center', va='top',
-                            color='#666', fontsize=7, zorder=3)
+            self.ax_tree.text(x, y - radius - 0.02, f'[{i}]', ha='center', va='top',
+                            color=self.SUBTEXT_COLOR, fontsize=8, zorder=3)
         
         self.ax_tree.set_xlim(0, 1)
         self.ax_tree.set_ylim(0, 1)
-        self.ax_tree.set_xticks([])
-        self.ax_tree.set_yticks([])
-        for spine in self.ax_tree.spines.values():
-            spine.set_visible(False)
+        self.ax_tree.set_axis_off()
     
     def _generate_steps(self):
         arr = self.array.copy()
@@ -324,7 +377,8 @@ class SortingVisualization(ctk.CTkToplevel):
         else:
             self._gen_radixsort(arr)
         
-        self.steps.append((arr.copy(), {i: 'sorted' for i in range(len(arr))}, "Sorting Complete!"))
+        # Final step padding
+        self.steps.append((arr.copy(), {i: 'sorted' for i in range(len(arr))}, {}, "Sorting Complete!"))
     
     def _gen_quicksort(self, arr, lo, hi, sorted_set):
         if lo < hi:
@@ -332,13 +386,18 @@ class SortingVisualization(ctk.CTkToplevel):
             pivot_val = arr[pivot_idx]
             hl = {pivot_idx: 'pivot'}
             hl.update({i: 'sorted' for i in sorted_set})
-            self.steps.append((arr.copy(), hl, f"PIVOT selected: {pivot_val}"))
+            
+            self.steps.append((arr.copy(), hl, {'i': lo-1, 'j': lo}, f"PIVOT: {pivot_val}"))
             
             i = lo - 1
             for j in range(lo, hi):
                 hl = {pivot_idx: 'pivot', j: 'comparing'}
+                # Optionally highlight i to show swap target
+                if i >= 0:
+                     hl[i] = 'normal' # Just ensure pointers are main focus
                 hl.update({k: 'sorted' for k in sorted_set})
-                self.steps.append((arr.copy(), hl, f"Compare {arr[j]} with PIVOT {pivot_val}"))
+                
+                self.steps.append((arr.copy(), hl, {'i': i, 'j': j}, f"Compare {arr[j]} < {pivot_val}?"))
                 
                 if arr[j] <= pivot_val:
                     i += 1
@@ -346,13 +405,13 @@ class SortingVisualization(ctk.CTkToplevel):
                         arr[i], arr[j] = arr[j], arr[i]
                         hl = {pivot_idx: 'pivot', i: 'swapping', j: 'swapping'}
                         hl.update({k: 'sorted' for k in sorted_set})
-                        self.steps.append((arr.copy(), hl, f"Swap {arr[j]} and {arr[i]}"))
+                        self.steps.append((arr.copy(), hl, {'i': i, 'j': j}, f"Swap: {arr[j]} <-> {arr[i]}"))
             
             arr[i+1], arr[hi] = arr[hi], arr[i+1]
             sorted_set.add(i+1)
             hl = {i+1: 'sorted'}
             hl.update({k: 'sorted' for k in sorted_set})
-            self.steps.append((arr.copy(), hl, f"PIVOT placed at position {i+1}"))
+            self.steps.append((arr.copy(), hl, {'i': i+1}, f"Pivot placed"))
             
             self._gen_quicksort(arr, lo, i, sorted_set)
             self._gen_quicksort(arr, i+2, hi, sorted_set)
@@ -386,7 +445,6 @@ class SortingVisualization(ctk.CTkToplevel):
         largest = i
         l, r = 2*i+1, 2*i+2
         
-        # Show comparison
         hl = {i: 'pivot'}
         if l < n: hl[l] = 'comparing'
         if r < n: hl[r] = 'comparing'
@@ -484,8 +542,16 @@ class SortingVisualization(ctk.CTkToplevel):
         if self.current_step >= len(self.steps):
             return
         
-        arr, highlights, desc = self.steps[self.current_step]
-        self._draw_bars(arr, highlights)
+        step_data = self.steps[self.current_step]
+        
+        # Flexible unpacking
+        if len(step_data) == 4:
+            arr, highlights, pointers, desc = step_data
+        else:
+            arr, highlights, desc = step_data
+            pointers = {}
+            
+        self._draw_bars(arr, highlights, pointers)
         self.step_label.configure(text=f"Step: {self.current_step + 1} / {len(self.steps)}")
         self.action_label.configure(text=desc)
         
@@ -503,17 +569,17 @@ class SortingVisualization(ctk.CTkToplevel):
         self.is_running = not self.is_running
         
         if self.is_running:
-            self.play_btn.configure(text="STOP", fg_color="#d29922")
+            self.play_btn.configure(text="STOP", fg_color=self.COLORS['bar_gap'], text_color="black")
             self.step_btn.configure(state="disabled")
             self._auto_play()
         else:
-            self.play_btn.configure(text="AUTO", fg_color="#58a6ff")
+            self.play_btn.configure(text="AUTO", fg_color=self.COLORS['bar_normal'], text_color="white")
             self.step_btn.configure(state="normal")
     
     def _auto_play(self):
         if not self.is_running or self.current_step >= len(self.steps):
             self.is_running = False
-            self.play_btn.configure(text="AUTO", fg_color="#58a6ff")
+            self.play_btn.configure(text="AUTO", fg_color=self.COLORS['bar_normal'], text_color="white")
             self.step_btn.configure(state="normal" if self.current_step < len(self.steps) else "disabled")
             return
         
@@ -528,10 +594,17 @@ class SortingVisualization(ctk.CTkToplevel):
         self.array = self.original_array.copy()
         self.steps = []
         self._generate_steps()
-        self._draw_bars(self.array, {})
+        
+        step_data = self.steps[0]
+        if len(step_data) == 4:
+            arr, hl, ptrs, desc = step_data
+        else:
+            arr, hl, desc = step_data
+            ptrs = {}
+        self._draw_bars(arr, hl, ptrs)
         
         self.step_btn.configure(state="normal", text="STEP")
-        self.play_btn.configure(text="AUTO", fg_color="#58a6ff", state="normal")
+        self.play_btn.configure(text="AUTO", fg_color=self.COLORS['bar_normal'], text_color="white", state="normal")
         self.step_label.configure(text=f"Step: 0 / {len(self.steps)}")
         self.action_label.configure(text="Press STEP or AUTO to begin")
     
@@ -558,5 +631,4 @@ class SortingVisualization(ctk.CTkToplevel):
         self._restart()
 
 
-# Need to import plt for Circle
 import matplotlib.pyplot as plt
