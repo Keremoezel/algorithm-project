@@ -19,7 +19,7 @@ class SortingVisualization(ctk.CTkToplevel):
     COLORS = {
         'bg': '#ffffff',
         'bar_normal': '#0969da',      # Blue
-        'bar_comparing': '#cf222e',   # Red
+        'bar_comparing': '#f5a623',   # Orange
         'bar_swapping': '#2da44e',    # Green
         'bar_sorted': '#8250df',      # Purple
         'bar_pivot': '#d93a3a',       # Strong Red for PIVOT
@@ -150,7 +150,7 @@ class SortingVisualization(ctk.CTkToplevel):
         inp_row.pack(pady=8)
         
         ctk.CTkLabel(inp_row, text="Numbers:", text_color=self.TEXT_COLOR).pack(side="left", padx=5)
-        self.input_entry = ctk.CTkEntry(inp_row, width=220, placeholder_text="e.g., 8,3,5,1,9", 
+        self.input_entry = ctk.CTkEntry(inp_row, width=350, placeholder_text="e.g., 8,3,5,1,9", 
                                         fg_color="white", text_color="black", placeholder_text_color="gray")
         self.input_entry.pack(side="left", padx=5)
         ctk.CTkButton(inp_row, text="Apply", width=55, fg_color=self.COLORS['bar_swapping'], text_color="white", command=self._apply_custom).pack(side="left", padx=3)
@@ -238,13 +238,18 @@ class SortingVisualization(ctk.CTkToplevel):
                 self.ax.text(bar.get_x() + bar.get_width()/2, bar.get_height()/2,
                             'M', ha='center', va='center', color=label_color, fontsize=10, fontweight='bold')
 
-        # Draw Pointers (i, j)
+        # Draw Pointers (i, j) with box style like in the reference image
         if pointers:
             for label, idx in pointers.items():
                 if 0 <= idx < len(array):
-                    # Dark pointer color for white background
-                    self.ax.text(idx, -2, f"↑\n{label}", ha='center', va='top', 
-                                color='#FFFFFF', fontsize=14, fontweight='bold')
+                    # Arrow pointing up
+                    self.ax.annotate('', xy=(idx, 0), xytext=(idx, -3),
+                                    arrowprops=dict(arrowstyle='->', color='#0969da', lw=2))
+                    # Label in a box
+                    self.ax.text(idx, -4.5, label, ha='center', va='center', 
+                                color='black', fontsize=12, fontweight='bold',
+                                bbox=dict(boxstyle='square,pad=0.3', facecolor='white', 
+                                         edgecolor='#0969da', linewidth=2))
         
         # Extend y-limit for pointers
         self.ax.set_ylim(-6, max(array) + 8)
@@ -628,6 +633,9 @@ class SortingVisualization(ctk.CTkToplevel):
         n = random.randint(7, 10) if self.algorithm_name == "Heap Sort" else random.randint(8, 12)
         self.array = [random.randint(5, 50) for _ in range(n)]
         self.original_array = self.array.copy()
+        # Show generated numbers in textbox
+        self.input_entry.delete(0, "end")
+        self.input_entry.insert(0, ",".join(str(x) for x in self.array))
         self._restart()
 
 

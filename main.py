@@ -188,7 +188,7 @@ class UltimateSortingAnalyzer(ctk.CTk):
         for txt, val in [("1K", 1000), ("10K", 10000), ("50K", 50000), ("100K", 100000)]:
             ctk.CTkButton(preset_frame, text=txt, width=50, height=28,
                          fg_color=self.COLORS['border'], hover_color=self.COLORS['accent_blue'],
-                         command=lambda v=val: self._set_size(v)).pack(side="left", padx=2)
+                         text_color="black", command=lambda v=val: self._set_size(v)).pack(side="left", padx=2)
         
         # Algorithms
         self._section(sidebar, "ALGORITHMS")
@@ -240,7 +240,7 @@ class UltimateSortingAnalyzer(ctk.CTk):
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
         
         self.tab_charts = self.tabview.add("Performance Charts")
-        self.tab_info = self.tabview.add("Algorithm Info (Click for Demo!)")
+        self.tab_info = self.tabview.add("Algorithm Visualization")
         self.tab_report = self.tabview.add("Detailed Report")
         
         self._create_charts_tab()
@@ -250,16 +250,15 @@ class UltimateSortingAnalyzer(ctk.CTk):
     def _create_charts_tab(self):
         plt.style.use('default')
         
-        self.fig = Figure(figsize=(12, 7), facecolor=self.COLORS['bg_dark'])
-        self.fig.subplots_adjust(left=0.07, right=0.93, top=0.90, bottom=0.12, wspace=0.35, hspace=0.45)
+        self.fig = Figure(figsize=(12, 8), facecolor=self.COLORS['bg_dark'])
+        self.fig.subplots_adjust(left=0.07, right=0.93, top=0.92, bottom=0.08, wspace=0.35, hspace=0.35)
         
+        # Top row: Line charts
         self.ax1 = self.fig.add_subplot(221)
         self.ax2 = self.fig.add_subplot(222)
+        # Bottom row: Bar charts
         self.ax3 = self.fig.add_subplot(223)
         self.ax4 = self.fig.add_subplot(224)
-        
-        # Create twin axis for combined chart once
-        self.ax3b = self.ax3.twinx()
         
         for ax in [self.ax1, self.ax2, self.ax3, self.ax4]:
             ax.set_facecolor(self.COLORS['bg_dark'])
@@ -271,8 +270,7 @@ class UltimateSortingAnalyzer(ctk.CTk):
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=5, pady=5)
     
     def _style_empty_charts(self):
-        titles = ["EXECUTION TIME\n(Lower = Faster)", "MEMORY USAGE\n(Lower = Better)",
-                  "COMBINED COMPARISON", "ALGORITHM RACE\n(Time to Finish)"]
+        titles = ["EXECUTION TIME", "MEMORY USAGE", "TIME COMPARISON", "MEMORY COMPARISON"]
         for ax, title in zip([self.ax1, self.ax2, self.ax3, self.ax4], titles):
             ax.set_title(title, color='black', fontsize=10, fontweight='bold', pad=10)
             ax.text(0.5, 0.5, "Click START ANALYSIS", ha='center', va='center',
@@ -382,44 +380,57 @@ class UltimateSortingAnalyzer(ctk.CTk):
     
     def _run_analysis(self):
         try:
-            size = self.data_size.get()
+            max_size = self.data_size.get()
             dtype = self.dataset_type.get()
             selected = [n for n, v in self.algo_vars.items() if v.get()]
             
-            self._update_prog("Generating data...", 0.05)
-            time.sleep(0.2)
-            
-            if dtype == "Random":
-                data = DataGenerator.random(size)
-            elif dtype == "Reverse Sorted":
-                data = DataGenerator.reverse(size)
+            # Create test points from small to max_size (5 points)
+            if max_size <= 5000:
+                test_sizes = [max_size // 5 * i for i in range(1, 6)]
             else:
-                data = DataGenerator.partial(size)
+                test_sizes = [max_size // 5 * i for i in range(1, 6)]
+            test_sizes = [max(100, s) for s in test_sizes]  # Minimum 100
             
-            results = []
-            total = len(selected)
+            # Results dictionary: {algo_name: {size: PerformanceResult}}
+            multi_results = {algo: {} for algo in selected}
             
-            for i, algo in enumerate(selected):
-                self._update_prog(f"Testing {algo}...", (i + 0.5) / total * 0.85 + 0.1)
-                time.sleep(0.1)
+            total_tests = len(selected) * len(test_sizes)
+            current_test = 0
+            
+            for size in test_sizes:
+                self._update_prog(f"Generating {size:,} elements...", current_test / total_tests * 0.9 + 0.05)
                 
-                arr = data.copy()
-                tracemalloc.start()
-                start = time.perf_counter()
-                ALGORITHM_MAP[algo](arr)
-                end = time.perf_counter()
-                _, peak = tracemalloc.get_traced_memory()
-                tracemalloc.stop()
+                if dtype == "Random":
+                    data = DataGenerator.random(size)
+                elif dtype == "Reverse Sorted":
+                    data = DataGenerator.reverse(size)
+                else:
+                    data = DataGenerator.partial(size)
                 
-                results.append(PerformanceResult(algo, (end-start)*1000, peak/1024, size, dtype))
+                for algo in selected:
+                    self._update_prog(f"Testing {algo} ({size:,})...", current_test / total_tests * 0.9 + 0.05)
+                    
+                    arr = data.copy()
+                    tracemalloc.start()
+                    start = time.perf_counter()
+                    ALGORITHM_MAP[algo](arr)
+                    end = time.perf_counter()
+                    _, peak = tracemalloc.get_traced_memory()
+                    tracemalloc.stop()
+                    
+                    multi_results[algo][size] = PerformanceResult(algo, (end-start)*1000, peak/1024, size, dtype)
+                    current_test += 1
             
-            self.results = results
+            self.multi_results = multi_results
+            self.test_sizes = test_sizes
             self._update_prog("Creating charts...", 0.95)
-            time.sleep(0.2)
+            time.sleep(0.1)
             
-            self.after(0, lambda: self._display_results(results, dtype, size))
+            self.after(0, lambda: self._display_multi_results(multi_results, test_sizes, dtype, max_size))
             
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             self.after(0, lambda: self.status_indicator.configure(text=f"Error", text_color=self.COLORS['accent_red']))
         finally:
             self.after(0, self._finish_analysis)
@@ -435,140 +446,286 @@ class UltimateSortingAnalyzer(ctk.CTk):
         self.progress_bar.pack_forget()
         self.progress_text.pack_forget()
         
-        if self.results:
-            best_time = min(self.results, key=lambda r: r.time_ms)
-            best_mem = min(self.results, key=lambda r: r.memory_kb)
+        if hasattr(self, 'multi_results') and self.multi_results:
+            # Find fastest at max size
+            max_size = max(self.test_sizes)
+            final_results = [self.multi_results[algo][max_size] for algo in self.multi_results]
+            best_time = min(final_results, key=lambda r: r.time_ms)
+            best_mem = min(final_results, key=lambda r: r.memory_kb)
             self._update_guide(f"Done!\n\nFastest: {best_time.algorithm}\nMost Efficient: {best_mem.algorithm}")
     
-    def _display_results(self, results, dtype, size):
-        self._update_charts(results, dtype, size)
-        self._update_report(results, dtype, size)
+    def _display_multi_results(self, multi_results, test_sizes, dtype, max_size):
+        self._update_multi_charts(multi_results, test_sizes, dtype, max_size)
+        # Pass all data for comprehensive report
+        self._update_multi_report(multi_results, test_sizes, dtype, max_size)
         self.tabview.set("Performance Charts")
     
-    def _update_charts(self, results, dtype, size):
-        # Clear all axes including twin axis
-        for ax in [self.ax1, self.ax2, self.ax3, self.ax4]:
+    def _update_multi_charts(self, multi_results, test_sizes, dtype, max_size):
+        # Clear all axes
+        for ax in [self.ax1, self.ax2]:
             ax.clear()
-        self.ax3b.clear()
         
-        names = [r.algorithm.replace(" Sort", "") for r in results]
-        full_names = [r.algorithm for r in results]
-        times = [r.time_ms for r in results]
-        mems = [r.memory_kb for r in results]
-        x = np.arange(len(names))
-        colors = [self.ALGO_COLORS.get(fn, '#58a6ff') for fn in full_names]
+        # X axis: data sizes
+        x = test_sizes
+        x_labels = [f"{s//1000}K" if s >= 1000 else str(s) for s in test_sizes]
         
-        # Time chart
-        for i, (xi, ti, c, name) in enumerate(zip(x, times, colors, names)):
-            self.ax1.plot([xi], [ti], 'o', color=c, markersize=14, markerfacecolor=c,
-                         markeredgecolor='white', markeredgewidth=2, zorder=5, label=name)
-            self.ax1.annotate(f'{ti:.1f}ms', (xi, ti), textcoords="offset points", xytext=(0, 18),
-                             ha='center', fontsize=9, fontweight='bold', color='white',
-                             bbox=dict(boxstyle='round,pad=0.3', facecolor=c, alpha=0.9))
-        self.ax1.plot(x, times, '-', color='#888888', linewidth=2, alpha=0.5, zorder=1)
-        min_idx = times.index(min(times))
-        self.ax1.scatter([min_idx], [times[min_idx]], s=300, c='#00ff00', marker='*', zorder=10)
-        self.ax1.set_title("EXECUTION TIME\n(Lower = Faster)", color='black', fontsize=11, fontweight='bold', pad=10)
-        self.ax1.set_xticks(x)
-        self.ax1.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='black')
-        self.ax1.tick_params(colors='black')
-        self.ax1.grid(True, linestyle='--', alpha=0.3)
-        self.ax1.legend(loc='upper right', facecolor='#f0f0f0', labelcolor='black', fontsize=8)
+        # Store lines for interactive legend
+        self.lines1 = []  # Time chart lines
+        self.lines2 = []  # Memory chart lines
         
-        # Memory chart
-        for i, (xi, mi, c, name) in enumerate(zip(x, mems, colors, names)):
-            self.ax2.plot([xi], [mi], 's', color=c, markersize=14, markerfacecolor=c,
-                         markeredgecolor='white', markeredgewidth=2, zorder=5)
-            self.ax2.annotate(f'{mi:.0f}KB', (xi, mi), textcoords="offset points", xytext=(0, 18),
-                             ha='center', fontsize=9, fontweight='bold', color='white',
-                             bbox=dict(boxstyle='round,pad=0.3', facecolor=c, alpha=0.9))
-        self.ax2.plot(x, mems, '-', color='#888888', linewidth=2, alpha=0.5, zorder=1)
-        min_mem_idx = mems.index(min(mems))
-        self.ax2.scatter([min_mem_idx], [mems[min_mem_idx]], s=300, c='#00ff00', marker='*', zorder=10)
-        self.ax2.set_title("MEMORY USAGE\n(Lower = Better)", color='black', fontsize=11, fontweight='bold', pad=10)
-        self.ax2.set_xticks(x)
-        self.ax2.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='black')
-        self.ax2.tick_params(colors='black')
-        self.ax2.grid(True, linestyle='--', alpha=0.3)
-        
-        # Combined chart
-        line1 = self.ax3.plot(x, times, 'o-', color=self.COLORS['accent_blue'], linewidth=3, markersize=10, label='Time (ms)')
-        self.ax3.fill_between(x, times, alpha=0.2, color=self.COLORS['accent_blue'])
-        self.ax3.set_ylabel("Time (ms)", color=self.COLORS['accent_blue'])
-        self.ax3.tick_params(axis='y', colors=self.COLORS['accent_blue'])
-        
-        line2 = self.ax3b.plot(x, mems, 's-', color=self.COLORS['accent_orange'], linewidth=3, markersize=10, label='Memory (KB)')
-        self.ax3b.fill_between(x, mems, alpha=0.2, color=self.COLORS['accent_orange'])
-        self.ax3b.set_ylabel("Memory (KB)", color=self.COLORS['accent_orange'])
-        self.ax3b.tick_params(axis='y', colors=self.COLORS['accent_orange'])
-        
-        self.ax3.set_title("COMBINED COMPARISON", color='black', fontsize=11, fontweight='bold', pad=10)
-        self.ax3.set_xticks(x)
-        self.ax3.set_xticklabels(names, rotation=15, ha='right', fontsize=9, color='black')
-        self.ax3.tick_params(axis='x', colors='black')
-        self.ax3.grid(True, linestyle='--', alpha=0.3)
-        self.ax3.legend(line1+line2, ['Time', 'Memory'], loc='upper center', facecolor='#f0f0f0', labelcolor='black', ncol=2)
-        
-        # Race Chart (Ranking by Speed - Items/sec)
-        # Calculate speed (Items per second) prevents div/0
-        speeds = [size / (t / 1000 + 0.00001) for t in times]
-        
-        # Sort by speed ascending (Slowest at bottom, Fastest at top)
-        sorted_idx = np.argsort(speeds)
-        sorted_names = [names[i] for i in sorted_idx]
-        sorted_speeds = [speeds[i] for i in sorted_idx]
-        sorted_colors = [colors[i] for i in sorted_idx]
-        sorted_times = [times[i] for i in sorted_idx]
-        
-        bars = self.ax4.barh(sorted_names, sorted_speeds, color=sorted_colors, edgecolor='white', height=0.6)
-        
-        max_speed = max(speeds)
-        for i, (bar, speed, time_val) in enumerate(zip(bars, sorted_speeds, sorted_times)):
-            # Label with Speed AND Time
-            label_text = f"{speed:,.0f} ops/s ({time_val:.1f}ms)"
-            self.ax4.text(speed + (max_speed * 0.02), bar.get_y() + bar.get_height()/2, label_text,
-                         va='center', color='black', fontsize=9, fontweight='bold')
+        # Plot each algorithm as a line
+        for algo_name, size_results in multi_results.items():
+            color = self.ALGO_COLORS.get(algo_name, '#58a6ff')
+            display_name = algo_name.replace(" Sort", "")
             
-            # Winner badge for the top one
-            if i == len(bars) - 1:
-                self.ax4.text(speed / 2, bar.get_y() + bar.get_height()/2, '🏆 WINNER',
-                             ha='center', va='center', color='white', fontsize=10, fontweight='bold',
-                             bbox=dict(facecolor='black', alpha=0.3, edgecolor='none', boxstyle='round,pad=0.2'))
+            # Collect time and memory data for each size
+            times = [size_results[s].time_ms for s in test_sizes]
+            mems = [size_results[s].memory_kb for s in test_sizes]
+            
+            # Time chart - line with markers
+            line1, = self.ax1.plot(x, times, 'o-', color=color, linewidth=2.5, markersize=8,
+                         markerfacecolor=color, markeredgecolor='white', markeredgewidth=1.5,
+                         label=algo_name, zorder=5, picker=5)
+            self.lines1.append(line1)
+            
+            # Memory chart - line with markers
+            line2, = self.ax2.plot(x, mems, 'o-', color=color, linewidth=2.5, markersize=8,
+                         markerfacecolor=color, markeredgecolor='white', markeredgewidth=1.5,
+                         label=algo_name, zorder=5, picker=5)
+            self.lines2.append(line2)
         
-        self.ax4.set_title("ALGORITHM RACE\n(Processing Speed)", color='black', fontsize=11, fontweight='bold', pad=10)
-        self.ax4.set_xlim(0, max(speeds) * 1.45) # Extra space
+        # Style Time chart
+        self.ax1.set_title(f"Time - {dtype}", color='black', fontsize=12, fontweight='bold', pad=10)
+        self.ax1.set_xlabel("Data Size (n)", color='black', fontsize=10)
+        self.ax1.set_ylabel("Time (ms)", color='black', fontsize=10)
+        self.ax1.set_xticks(x)
+        self.ax1.set_xticklabels(x_labels, fontsize=9, color='black')
+        self.ax1.tick_params(colors='black')
+        self.ax1.grid(True, linestyle='-', alpha=0.3)
+        leg1 = self.ax1.legend(loc='upper left', facecolor='white', labelcolor='black', fontsize=8,
+                       edgecolor='#ccc', framealpha=0.95)
+        
+        # Style Memory chart  
+        self.ax2.set_title(f"Memory - {dtype}", color='black', fontsize=12, fontweight='bold', pad=10)
+        self.ax2.set_xlabel("Data Size (n)", color='black', fontsize=10)
+        self.ax2.set_ylabel("Memory (KB)", color='black', fontsize=10)
+        self.ax2.set_xticks(x)
+        self.ax2.set_xticklabels(x_labels, fontsize=9, color='black')
+        self.ax2.tick_params(colors='black')
+        self.ax2.grid(True, linestyle='-', alpha=0.3)
+        leg2 = self.ax2.legend(loc='upper left', facecolor='white', labelcolor='black', fontsize=8,
+                       edgecolor='#ccc', framealpha=0.95)
+        
+        # Make legend items clickable - separate mapping for each chart
+        self.legend_line_map = {}
+        
+        # Chart 1 legend -> Chart 1 lines only
+        for leg_line, orig_line in zip(leg1.get_lines(), self.lines1):
+            leg_line.set_picker(5)
+            self.legend_line_map[leg_line] = orig_line
+        
+        # Chart 2 legend -> Chart 2 lines only
+        for leg_line, orig_line in zip(leg2.get_lines(), self.lines2):
+            leg_line.set_picker(5)
+            self.legend_line_map[leg_line] = orig_line
+        
+        # Connect pick event
+        if hasattr(self, '_pick_cid'):
+            self.fig.canvas.mpl_disconnect(self._pick_cid)
+        self._pick_cid = self.fig.canvas.mpl_connect('pick_event', self._on_legend_click)
+        
+        # Store data for hover tooltip
+        self.hover_data = {
+            'test_sizes': test_sizes,
+            'multi_results': multi_results,
+            'x_labels': x_labels
+        }
+        
+        # Create annotation for hover tooltip
+        self.annot1 = self.ax1.annotate("", xy=(0,0), xytext=(10,10),
+                                        textcoords="offset points",
+                                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9),
+                                        fontsize=9, color='black', zorder=100)
+        self.annot1.set_visible(False)
+        
+        self.annot2 = self.ax2.annotate("", xy=(0,0), xytext=(10,10),
+                                        textcoords="offset points",
+                                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9),
+                                        fontsize=9, color='black', zorder=100)
+        self.annot2.set_visible(False)
+        
+        # Connect hover event
+        if hasattr(self, '_hover_cid'):
+            self.fig.canvas.mpl_disconnect(self._hover_cid)
+        self._hover_cid = self.fig.canvas.mpl_connect('motion_notify_event', self._on_hover)
+        
+        # === BAR CHARTS (Bottom Row) ===
+        self.ax3.clear()
+        self.ax4.clear()
+        
+        # Get data for max size
+        algo_names = list(multi_results.keys())
+        max_times = [multi_results[algo][max_size].time_ms for algo in algo_names]
+        max_mems = [multi_results[algo][max_size].memory_kb for algo in algo_names]
+        bar_colors = [self.ALGO_COLORS.get(algo, '#58a6ff') for algo in algo_names]
+        short_names = [algo.replace(" Sort", "") for algo in algo_names]
+        
+        # Sort by time for time chart
+        time_sorted = sorted(zip(short_names, max_times, bar_colors), key=lambda x: x[1])
+        t_names, t_vals, t_colors = zip(*time_sorted)
+        
+        # Time bar chart
+        bars1 = self.ax3.bar(t_names, t_vals, color=t_colors, edgecolor='white', linewidth=1.5)
+        for bar, val in zip(bars1, t_vals):
+            self.ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(t_vals)*0.02,
+                         f'{val:.1f}ms', ha='center', va='bottom', fontsize=9, fontweight='bold', color='black')
+        self.ax3.set_title(f"TIME COMPARISON AT MAX SIZE ({max_size:,} elements)", color='black', fontsize=10, fontweight='bold', pad=10)
+        self.ax3.set_ylabel("Time (ms)", color='black', fontsize=9)
+        self.ax3.tick_params(colors='black')
+        self.ax3.grid(True, axis='y', linestyle='-', alpha=0.3)
+        
+        # Sort by memory for memory chart
+        mem_sorted = sorted(zip(short_names, max_mems, bar_colors), key=lambda x: x[1])
+        m_names, m_vals, m_colors = zip(*mem_sorted)
+        
+        # Memory bar chart
+        bars2 = self.ax4.bar(m_names, m_vals, color=m_colors, edgecolor='white', linewidth=1.5)
+        for bar, val in zip(bars2, m_vals):
+            self.ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + max(m_vals)*0.02,
+                         f'{val:.0f}KB', ha='center', va='bottom', fontsize=9, fontweight='bold', color='black')
+        self.ax4.set_title(f"MEMORY COMPARISON AT MAX SIZE ({max_size:,} elements)", color='black', fontsize=10, fontweight='bold', pad=10)
+        self.ax4.set_ylabel("Memory (KB)", color='black', fontsize=9)
         self.ax4.tick_params(colors='black')
-        self.ax4.grid(True, axis='x', linestyle='--', alpha=0.3)
+        self.ax4.grid(True, axis='y', linestyle='-', alpha=0.3)
         
+        # White background for all charts
         for ax in [self.ax1, self.ax2, self.ax3, self.ax4]:
-            ax.set_facecolor(self.COLORS['bg_dark'])
+            ax.set_facecolor('#ffffff')
             for spine in ax.spines.values():
-                spine.set_color(self.COLORS['border'])
+                spine.set_color('#ccc')
         
-        self.fig.suptitle(f"Analysis: {dtype} Data | {size:,} Elements", color='black', fontsize=13, fontweight='bold', y=0.97)
-        self.fig.tight_layout(rect=[0, 0, 1, 0.95])
+        self.fig.set_facecolor('#ffffff')
+        self.fig.suptitle(f"Algorithm Performance Analysis | Max: {max_size:,} Elements", 
+                         color='black', fontsize=13, fontweight='bold', y=0.98)
+        self.fig.tight_layout(rect=[0, 0.02, 1, 0.95])
         self.canvas.draw()
     
-    def _update_report(self, results, dtype, size):
-        best_time = min(results, key=lambda r: r.time_ms)
-        best_mem = min(results, key=lambda r: r.memory_kb)
+    def _on_hover(self, event):
+        """Show tooltip when hovering over data points."""
+        if event.inaxes not in [self.ax1, self.ax2]:
+            self.annot1.set_visible(False)
+            self.annot2.set_visible(False)
+            self.canvas.draw_idle()
+            return
         
+        # Determine which chart and lines to check
+        if event.inaxes == self.ax1:
+            lines = self.lines1
+            annot = self.annot1
+            value_type = "ms"
+        else:
+            lines = self.lines2
+            annot = self.annot2
+            value_type = "KB"
+        
+        found = False
+        for line in lines:
+            if not line.get_visible():
+                continue
+            cont, ind = line.contains(event)
+            if cont:
+                x_data = line.get_xdata()
+                y_data = line.get_ydata()
+                idx = ind["ind"][0]
+                x_val = x_data[idx]
+                y_val = y_data[idx]
+                
+                # Get algorithm name from label
+                algo_name = line.get_label()
+                size_label = self.hover_data['x_labels'][idx] if idx < len(self.hover_data['x_labels']) else str(x_val)
+                
+                annot.xy = (x_val, y_val)
+                annot.set_text(f"{algo_name}\n{size_label}: {y_val:.2f} {value_type}")
+                annot.set_visible(True)
+                found = True
+                break
+        
+        if not found:
+            annot.set_visible(False)
+        
+        self.canvas.draw_idle()
+    
+    def _on_legend_click(self, event):
+        """Toggle line visibility when legend item is clicked - independent per chart."""
+        leg_line = event.artist
+        if leg_line in self.legend_line_map:
+            orig_line = self.legend_line_map[leg_line]
+            
+            # Toggle visibility only for the clicked chart's line
+            visible = not orig_line.get_visible()
+            orig_line.set_visible(visible)
+            
+            # Change legend line alpha to show state
+            leg_line.set_alpha(1.0 if visible else 0.2)
+            
+            self.canvas.draw()
+    
+    def _update_multi_report(self, multi_results, test_sizes, dtype, max_size):
+        # Find winners at max size
+        final_results = [multi_results[algo][max_size] for algo in multi_results]
+        best_time = min(final_results, key=lambda r: r.time_ms)
+        best_mem = min(final_results, key=lambda r: r.memory_kb)
+        
+        # Build comprehensive report
         report = f"""
-PERFORMANCE ANALYSIS REPORT
-===========================
+╔══════════════════════════════════════════════════════════════════════════╗
+║                    PERFORMANCE ANALYSIS REPORT                           ║
+╚══════════════════════════════════════════════════════════════════════════╝
 
-Configuration: {dtype} | {size:,} elements
+Configuration: {dtype} Data | Max Size: {max_size:,} elements
+Test Points: {', '.join(f'{s:,}' for s in test_sizes)}
 
-RESULTS (by speed):
+═══════════════════════════════════════════════════════════════════════════
+                            TIME RESULTS (ms)
+═══════════════════════════════════════════════════════════════════════════
 """
-        for r in sorted(results, key=lambda x: x.time_ms):
-            report += f"\n  {r.algorithm}: {r.time_ms:.2f} ms | {r.memory_kb:.0f} KB"
+        # Header
+        size_labels = [f"{s//1000}K" if s >= 1000 else str(s) for s in test_sizes]
+        header = f"{'Algorithm':<15}" + "".join(f"{lbl:>10}" for lbl in size_labels)
+        report += header + "\n"
+        report += "-" * (15 + len(test_sizes) * 10) + "\n"
+        
+        # Time data for each algorithm
+        for algo_name in multi_results:
+            row = f"{algo_name:<15}"
+            for size in test_sizes:
+                time_val = multi_results[algo_name][size].time_ms
+                row += f"{time_val:>10.2f}"
+            report += row + "\n"
         
         report += f"""
-
-WINNERS:
-  Fastest: {best_time.algorithm} ({best_time.time_ms:.2f} ms)
-  Most Efficient: {best_mem.algorithm} ({best_mem.memory_kb:.0f} KB)
+═══════════════════════════════════════════════════════════════════════════
+                          MEMORY RESULTS (KB)
+═══════════════════════════════════════════════════════════════════════════
+"""
+        # Header again
+        report += header + "\n"
+        report += "-" * (15 + len(test_sizes) * 10) + "\n"
+        
+        # Memory data for each algorithm
+        for algo_name in multi_results:
+            row = f"{algo_name:<15}"
+            for size in test_sizes:
+                mem_val = multi_results[algo_name][size].memory_kb
+                row += f"{mem_val:>10.0f}"
+            report += row + "\n"
+        
+        report += f"""
+═══════════════════════════════════════════════════════════════════════════
+                              WINNERS
+═══════════════════════════════════════════════════════════════════════════
+  Fastest:        {best_time.algorithm} ({best_time.time_ms:.2f} ms at {max_size:,})
+  Most Efficient: {best_mem.algorithm} ({best_mem.memory_kb:.0f} KB at {max_size:,})
 """
         self.report_text.delete("1.0", "end")
         self.report_text.insert("1.0", report)
